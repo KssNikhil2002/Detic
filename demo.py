@@ -45,8 +45,7 @@ WINDOW_NAME = "Detic"
 
 def setup_cfg(args):
     cfg = get_cfg()
-    if args.cpu:
-        cfg.MODEL.DEVICE="cpu"
+    cfg.MODEL.DEVICE="cpu"
     add_centernet_config(cfg)
     add_detic_config(cfg)
     cfg.merge_from_file(args.config_file)
