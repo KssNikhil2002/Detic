@@ -15,6 +15,7 @@ import mss
 from detectron2.config import get_cfg
 from detectron2.data.detection_utils import read_image
 from detectron2.utils.logger import setup_logger
+from detectron2.data import MetadataCatalog
 
 sys.path.insert(0, 'third_party/CenterNet2/')
 from centernet.config import add_centernet_config
@@ -127,6 +128,53 @@ def test_opencv_video_format(codec, file_ext):
         return False
 
 
+def process_input_files(input_paths, output_dir=None):
+    input_paths = glob.glob(os.path.expanduser(input_paths[0]))
+    assert input_paths, "The input path(s) was not found"
+    all_detected_labels = set()
+    
+    for path in tqdm.tqdm(input_paths, disable=not output_dir):
+        img = read_image(path, format="BGR")
+        start_time = time.time()
+        predictions, visualized_output = demo.run_on_image(img)
+        logger.info(
+            "{}: {} in {:.2f}s".format(
+                path,
+                "detected {} instances".format(len(predictions["instances"]))
+                if "instances" in predictions
+                else "finished",
+                time.time() - start_time,
+            )
+        )
+
+        # Extract and print the detected labels
+        if "instances" in predictions:
+            instances = predictions["instances"]
+            if instances.has("pred_classes"):
+                metadata = MetadataCatalog.get(cfg.DATASETS.TRAIN[0] if len(cfg.DATASETS.TRAIN) else "__unused")
+                labels = instances.pred_classes.tolist()
+                class_names = [metadata.thing_classes[i] for i in labels]
+                all_detected_labels.update(class_names)
+
+        if output_dir:
+            if os.path.isdir(output_dir):
+                out_filename = os.path.join(output_dir, os.path.basename(path))
+            else:
+                assert len(input_paths) == 1, "Please specify a directory with output_dir"
+                out_filename = output_dir
+            visualized_output.save(out_filename)
+        else:
+            cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
+            cv2.imshow(WINDOW_NAME, visualized_output.get_image()[:, :, ::-1])
+            if cv2.waitKey(0) == 27:
+                break  # esc to quit
+    
+    with open("labels.txt", "a") as file:
+        for label in all_detected_labels:
+            file.write(str(label) + "\n")
+
+
+
 if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
     args = get_parser().parse_args()
@@ -137,38 +185,10 @@ if __name__ == "__main__":
     cfg = setup_cfg(args)
 
     demo = VisualizationDemo(cfg, args)
+    detected_labels = set()
 
     if args.input:
-        if len(args.input) == 1:
-            args.input = glob.glob(os.path.expanduser(args.input[0]))
-            assert args.input, "The input path(s) was not found"
-        for path in tqdm.tqdm(args.input, disable=not args.output):
-            img = read_image(path, format="BGR")
-            start_time = time.time()
-            predictions, visualized_output = demo.run_on_image(img)
-            logger.info(
-                "{}: {} in {:.2f}s".format(
-                    path,
-                    "detected {} instances".format(len(predictions["instances"]))
-                    if "instances" in predictions
-                    else "finished",
-                    time.time() - start_time,
-                )
-            )
-
-            if args.output:
-                if os.path.isdir(args.output):
-                    assert os.path.isdir(args.output), args.output
-                    out_filename = os.path.join(args.output, os.path.basename(path))
-                else:
-                    assert len(args.input) == 1, "Please specify a directory with args.output"
-                    out_filename = args.output
-                visualized_output.save(out_filename)
-            else:
-                cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
-                cv2.imshow(WINDOW_NAME, visualized_output.get_image()[:, :, ::-1])
-                if cv2.waitKey(0) == 27:
-                    break  # esc to quit
+        process_input_files(args.input, args.output)
     elif args.webcam:
         assert args.input is None, "Cannot have both --input and --webcam!"
         assert args.output is None, "output not yet supported with --webcam!"
@@ -195,6 +215,7 @@ if __name__ == "__main__":
         )
         if codec == ".mp4v":
             warnings.warn("x264 codec not available, switching to mp4v")
+
         if args.output:
             if os.path.isdir(args.output):
                 output_fname = os.path.join(args.output, basename)
@@ -225,3 +246,5 @@ if __name__ == "__main__":
             output_file.release()
         else:
             cv2.destroyAllWindows()
+        
+
