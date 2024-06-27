@@ -132,6 +132,7 @@ def process_input_files(input_paths, output_dir=None):
     input_paths = glob.glob(os.path.expanduser(input_paths[0]))
     assert input_paths, "The input path(s) was not found"
     all_detected_labels = set()
+    labels_list = []
     
     for path in tqdm.tqdm(input_paths, disable=not output_dir):
         img = read_image(path, format="BGR")
@@ -155,6 +156,7 @@ def process_input_files(input_paths, output_dir=None):
                 labels = instances.pred_classes.tolist()
                 class_names = [metadata.thing_classes[i] for i in labels]
                 all_detected_labels.update(class_names)
+                labels_list = list(all_detected_labels)
 
         if output_dir:
             if os.path.isdir(output_dir):
@@ -170,8 +172,7 @@ def process_input_files(input_paths, output_dir=None):
                 break  # esc to quit
     
     with open("labels.txt", "a") as file:
-        for label in all_detected_labels:
-            file.write(str(label) + "\n")
+        file.write(str(labels_list) + "\n")
 
 
 

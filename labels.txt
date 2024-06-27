@@ -1,22 +1,2 @@
-flowerpot
-watch
-book
-dining_table
-cup
-table
-cellular_telephone
-notebook
-pencil
-person
-jar
-person
-cellular_telephone
-cup
-watch
-notebook
-table
-flowerpot
-dining_table
-jar
-book
-pencil
+['cellular_telephone', 'watch', 'book', 'jar', 'cup', 'notebook', 'table', 'flowerpot', 'dining_table', 'person', 'pencil']
+['dining_table', 'person', 'notebook', 'jar', 'table', 'cup', 'book', 'flowerpot', 'cellular_telephone', 'watch', 'pencil']
